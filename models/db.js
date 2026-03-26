@@ -1,18 +1,19 @@
 'use strict';
+require('dotenv').config();
 const { Pool } = require('pg');
 
+// ─── Pool ──────────────────────────────────────────────────────────────────────
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  max: 10,
+  family: 4,   // força IPv4 — necessário no Render Free tier
+  connectionTimeoutMillis: 10000,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
 });
 
-pool.on('error', (err) => {
-  console.error('[DB] Erro inesperado no pool:', err.message);
-});
-
+/**
+ * Helper para executar queries
+ */
 async function query(text, params) {
   const client = await pool.connect();
   try {
@@ -22,50 +23,51 @@ async function query(text, params) {
   }
 }
 
+/**
+ * Cria as tabelas necessárias se não existirem
+ */
 async function initDB() {
   await query(`
     CREATE TABLE IF NOT EXISTS campanhas (
       id           SERIAL PRIMARY KEY,
-      status       TEXT    NOT NULL DEFAULT 'aguardando_mensagem',
+      status       VARCHAR(30)  NOT NULL DEFAULT 'aguardando_csv',
       mensagem     TEXT,
-      total        INT     DEFAULT 0,
-      enviadas     INT     DEFAULT 0,
-      erros        INT     DEFAULT 0,
+      total        INTEGER      DEFAULT 0,
+      enviadas     INTEGER      DEFAULT 0,
+      erros        INTEGER      DEFAULT 0,
+      criada_em    TIMESTAMPTZ  DEFAULT NOW(),
       iniciada_em  TIMESTAMPTZ,
-      finalizada_em TIMESTAMPTZ,
-      criada_em    TIMESTAMPTZ DEFAULT NOW()
-    );
+      finalizada_em TIMESTAMPTZ
+    )
   `);
 
   await query(`
     CREATE TABLE IF NOT EXISTS contatos (
       id           SERIAL PRIMARY KEY,
-      campanha_id  INT     NOT NULL REFERENCES campanhas(id) ON DELETE CASCADE,
-      numero       TEXT    NOT NULL,
-      variaveis    JSONB   DEFAULT '{}',
-      status       TEXT    NOT NULL DEFAULT 'pendente',
-      tentativas   INT     DEFAULT 0,
+      campanha_id  INTEGER      REFERENCES campanhas(id) ON DELETE CASCADE,
+      numero       VARCHAR(20)  NOT NULL,
+      variaveis    JSONB        DEFAULT '{}',
+      status       VARCHAR(20)  DEFAULT 'pendente',
+      tentativas   INTEGER      DEFAULT 0,
       enviado_em   TIMESTAMPTZ,
       erro_msg     TEXT,
-      criado_em    TIMESTAMPTZ DEFAULT NOW()
-    );
+      UNIQUE(campanha_id, numero)
+    )
   `);
 
   await query(`
     CREATE TABLE IF NOT EXISTS blacklist (
-      id         SERIAL PRIMARY KEY,
-      numero     TEXT UNIQUE NOT NULL,
-      motivo     TEXT DEFAULT 'STOP',
-      criado_em  TIMESTAMPTZ DEFAULT NOW()
-    );
+      id        SERIAL PRIMARY KEY,
+      numero    VARCHAR(20) UNIQUE NOT NULL,
+      criado_em TIMESTAMPTZ DEFAULT NOW()
+    )
   `);
 
-  await query(`
-    CREATE INDEX IF NOT EXISTS idx_contatos_campanha
-      ON contatos(campanha_id, status);
-  `);
+  // Índices para melhor performance
+  await query(`CREATE INDEX IF NOT EXISTS idx_contatos_campanha_status ON contatos(campanha_id, status)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_campanhas_status ON campanhas(status)`);
 
   console.log('[DB] Tabelas inicializadas com sucesso.');
 }
 
-module.exports = { query, initDB, pool };
+module.exports = { query, initDB };
