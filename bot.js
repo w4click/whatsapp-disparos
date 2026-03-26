@@ -33,7 +33,7 @@ async function processarMensagem(payload) {
           const meId = sessionInfo?.me?.id || '';
 
       const remetenteNumero = chatId.replace(/@.*$/, '');
-                  const meuNumero       = meId.replace(/@.*$/, '');
+                  const meuNumero       = meId.replace(/@.*$/, '') || process.env.OWNER_NUMBER || '';    console.log(`[BOT] chatId=${chatId} fromMe=${msg?.fromMe} remetente=${remetenteNumero} meu=${meuNumero}`);
 
       // Ignorar mensagens enviadas pelo bot para outros números
       // No self-chat (dono envia para si mesmo) fromMe=true mas devemos processar
