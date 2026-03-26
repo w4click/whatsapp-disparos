@@ -9,7 +9,6 @@ const {
     cancelarCampanha,
     statusCampanha,
 } = require('./queue');
-h
 // Estado em memória por número (aguardando mensagem ou csv)
 const estadoUsuario = {};
 
