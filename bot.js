@@ -9,7 +9,7 @@ const {
     cancelarCampanha,
     statusCampanha,
 } = require('./queue');
-
+h
 // Estado em memória por número (aguardando mensagem ou csv)
 const estadoUsuario = {};
 
@@ -33,8 +33,8 @@ async function processarMensagem(payload) {
       const sessionInfo = await waha.getSessionInfo().catch(() => null);
           const meId = sessionInfo?.me?.id || '';
 
-      const remetenteNumero = chatId.replace('@c.us', '').replace('@g.us', '');
-          const meuNumero       = meId.replace('@c.us', '');
+      const remetenteNumero = chatId.replace(/@.*$/, '');
+                  const meuNumero       = meId.replace(/@.*$/, '');
 
       // Ignorar mensagens enviadas pelo bot para outros números
       // No self-chat (dono envia para si mesmo) fromMe=true mas devemos processar
